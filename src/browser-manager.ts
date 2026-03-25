@@ -25,6 +25,12 @@ import {
 } from './buffers.js';
 import { validateNavigationUrl } from './url-validation.js';
 import type { RefEntry } from './types.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+
+const STATE_DIR = path.join(os.homedir(), '.pilot');
+const STATE_FILE = path.join(STATE_DIR, 'state.json');
 
 export interface BrowserState {
   cookies: Cookie[];
@@ -96,11 +102,16 @@ export class BrowserManager {
       await this.context.setExtraHTTPHeaders(this.extraHeaders);
     }
 
+    // Auto-restore persisted cookies
+    await this.loadPersistedState();
+
     await this.newTab();
   }
 
   async close(): Promise<void> {
     if (this.browser) {
+      // Auto-persist cookies before closing
+      await this.persistState();
       this.browser.removeAllListeners('disconnected');
       await Promise.race([
         this.browser.close(),
@@ -410,6 +421,44 @@ export class BrowserManager {
       this.activeTabId = activeId ?? [...this.pages.keys()][0];
     }
     this.clearRefs();
+  }
+
+  // ─── Disk Persistence (cookies survive restarts) ──────────
+  async persistState(): Promise<void> {
+    if (!this.context) return;
+    try {
+      const cookies = await this.context.cookies();
+      if (cookies.length === 0) return;
+      fs.mkdirSync(STATE_DIR, { recursive: true });
+      fs.writeFileSync(STATE_FILE, JSON.stringify({ cookies }, null, 2));
+      console.error(`[pilot] Persisted ${cookies.length} cookies to ${STATE_FILE}`);
+    } catch (err) {
+      console.error(`[pilot] Failed to persist state: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  private async loadPersistedState(): Promise<void> {
+    if (!this.context) return;
+    try {
+      if (!fs.existsSync(STATE_FILE)) return;
+      const raw = fs.readFileSync(STATE_FILE, 'utf-8');
+      const { cookies } = JSON.parse(raw) as { cookies: Cookie[] };
+      if (cookies && cookies.length > 0) {
+        await this.context.addCookies(cookies);
+        console.error(`[pilot] Restored ${cookies.length} cookies from ${STATE_FILE}`);
+      }
+    } catch (err) {
+      console.error(`[pilot] Failed to restore state: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  async clearPersistedState(): Promise<void> {
+    try {
+      if (fs.existsSync(STATE_FILE)) {
+        fs.unlinkSync(STATE_FILE);
+        console.error('[pilot] Cleared persisted state');
+      }
+    } catch {}
   }
 
   async recreateContext(): Promise<string | null> {
