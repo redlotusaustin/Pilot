@@ -12,7 +12,12 @@ const TEMP_DIR = process.platform === 'win32' ? os.tmpdir() : '/tmp';
 
 export function validateOutputPath(outputPath: string): string {
   const allowed = process.env.PILOT_OUTPUT_DIR || os.tmpdir();
-  const normalizedAllowed = path.resolve(allowed);
+  let normalizedAllowed: string;
+  try {
+    normalizedAllowed = fs.realpathSync(path.resolve(allowed));
+  } catch {
+    normalizedAllowed = path.resolve(allowed);
+  }
   try {
     const parentDir = path.dirname(outputPath);
     const realParent = fs.realpathSync(parentDir);

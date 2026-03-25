@@ -400,9 +400,8 @@ Errors:
       await bm.ensureBrowser();
       try {
         const resolvedPaths = paths.map(fp => {
-          const real = fs.realpathSync(fp);
-          if (!fs.existsSync(real)) throw new Error(`File not found: ${fp} (resolved: ${real})`);
-          return real;
+          if (!fs.existsSync(fp)) throw new Error(`File not found: ${fp}`);
+          return fs.realpathSync(fp);
         });
         const page = bm.getPage();
         const resolved = await bm.resolveRef(ref);

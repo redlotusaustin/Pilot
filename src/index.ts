@@ -27,10 +27,10 @@ const server = new McpServer({
 
 const browserManager = new BrowserManager();
 
-let profile: ToolProfile = (process.env.PILOT_PROFILE || 'standard') as ToolProfile;
+let profile: ToolProfile = (process.env.PILOT_PROFILE || 'full') as ToolProfile;
 if (!['core', 'standard', 'full'].includes(profile)) {
-  console.error(`[pilot] Invalid PILOT_PROFILE="${profile}". Use: core (9 tools), standard (25 tools), full (all tools). Defaulting to standard.`);
-  profile = 'standard';
+  console.error(`[pilot] Invalid PILOT_PROFILE="${profile}". Use: core (9 tools), standard (25 tools), full (all tools). Defaulting to full.`);
+  profile = 'full';
 }
 registerAllTools(server, browserManager, profile);
 
