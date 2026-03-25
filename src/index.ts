@@ -15,19 +15,23 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { BrowserManager } from './browser-manager.js';
-import { registerAllTools } from './tools/register.js';
+import { registerAllTools, type ToolProfile } from './tools/register.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
 const server = new McpServer({
   name: 'pilot',
-  version: '0.1.0',
+  version: '0.2.0',
 });
 
 const browserManager = new BrowserManager();
 
-registerAllTools(server, browserManager);
+const profile = (process.env.PILOT_PROFILE || 'full') as ToolProfile;
+if (!['core', 'standard', 'full'].includes(profile)) {
+  console.error(`[pilot] Invalid PILOT_PROFILE="${profile}". Use: core (9 tools), standard (25 tools), full (all tools). Defaulting to full.`);
+}
+registerAllTools(server, browserManager, profile);
 
 async function main() {
   // One-time star reminder on first run

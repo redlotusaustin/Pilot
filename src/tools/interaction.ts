@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { BrowserManager } from '../browser-manager.js';
 import { wrapError } from '../errors.js';
 import * as fs from 'fs';
+import * as path from 'path';
 
 export function registerInteractionTools(server: McpServer, bm: BrowserManager) {
   server.tool(
@@ -298,7 +299,7 @@ export function registerInteractionTools(server: McpServer, bm: BrowserManager) 
         }
         const fileInfo = paths.map(fp => {
           const stat = fs.statSync(fp);
-          return `${require('path').basename(fp)} (${stat.size}B)`;
+          return `${path.basename(fp)} (${stat.size}B)`;
         }).join(', ');
         bm.resetFailures();
         return { content: [{ type: 'text' as const, text: `Uploaded: ${fileInfo}` }] };

@@ -12,6 +12,7 @@ import {
   type BrowserContext,
   type BrowserContextOptions,
   type Page,
+  type Frame,
   type Locator,
   type Cookie,
 } from 'playwright';
@@ -48,6 +49,9 @@ export class BrowserManager {
 
   // ─── Snapshot Diffing ─────────────────────────────────────
   private lastSnapshot: string | null = null;
+
+  // ─── Iframe Frame Tracking ─────────────────────────────────
+  private activeFrame: Frame | null = null;
 
   // ─── Dialog Handling ──────────────────────────────────────
   private dialogAutoAccept: boolean = true;
@@ -235,6 +239,55 @@ export class BrowserManager {
 
   getRefCount(): number {
     return this.refMap.size;
+  }
+
+  // ─── Iframe Frames ──────────────────────────────────────
+  getActiveFrame(): Frame {
+    if (this.activeFrame && !this.activeFrame.isDetached()) {
+      return this.activeFrame;
+    }
+    this.activeFrame = null;
+    return this.getPage().mainFrame();
+  }
+
+  setActiveFrame(frame: Frame | null): void {
+    this.activeFrame = frame;
+    this.clearRefs();
+  }
+
+  async listFrames(): Promise<Array<{ index: number; url: string; name: string; isMain: boolean }>> {
+    const page = this.getPage();
+    return page.frames().map((f, i) => ({
+      index: i,
+      url: f.url(),
+      name: f.name() || '',
+      isMain: f === page.mainFrame(),
+    }));
+  }
+
+  selectFrameByIndex(index: number): Frame {
+    const page = this.getPage();
+    const frames = page.frames();
+    if (index < 0 || index >= frames.length) {
+      throw new Error(`Frame index ${index} out of range (0-${frames.length - 1})`);
+    }
+    const frame = frames[index];
+    this.setActiveFrame(frame === page.mainFrame() ? null : frame);
+    return frame;
+  }
+
+  selectFrameByName(name: string): Frame {
+    const page = this.getPage();
+    const frame = page.frame({ name });
+    if (!frame) {
+      throw new Error(`Frame "${name}" not found. Use pilot_frames to list available frames.`);
+    }
+    this.setActiveFrame(frame === page.mainFrame() ? null : frame);
+    return frame;
+  }
+
+  resetFrame(): void {
+    this.setActiveFrame(null);
   }
 
   // ─── Snapshot Diffing ─────────────────────────────────────

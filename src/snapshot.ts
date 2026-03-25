@@ -10,7 +10,7 @@
  *   5. Return compact text output with refs prepended
  */
 
-import type { Page, Locator } from 'playwright';
+import type { Page, Locator, Frame } from 'playwright';
 import type { BrowserManager } from './browser-manager.js';
 import type { RefEntry, SnapshotOptions } from './types.js';
 import * as Diff from 'diff';
@@ -52,15 +52,15 @@ export async function takeSnapshot(
   bm: BrowserManager,
   opts: SnapshotOptions = {}
 ): Promise<string> {
-  const page = bm.getPage();
+  const frame = bm.getActiveFrame();
 
   let rootLocator: Locator;
   if (opts.selector) {
-    rootLocator = page.locator(opts.selector);
+    rootLocator = frame.locator(opts.selector);
     const count = await rootLocator.count();
     if (count === 0) throw new Error(`Selector not found: ${opts.selector}`);
   } else {
-    rootLocator = page.locator('body');
+    rootLocator = frame.locator('body');
   }
 
   const ariaText = await rootLocator.ariaSnapshot();
@@ -73,6 +73,8 @@ export async function takeSnapshot(
   const refMap = new Map<string, RefEntry>();
   const output: string[] = [];
   let refCounter = 1;
+  let truncated = false;
+  let skippedCount = 0;
 
   const roleNameCounts = new Map<string, number>();
   const roleNameSeen = new Map<string, number>();
@@ -103,6 +105,13 @@ export async function takeSnapshot(
 
     if (opts.compact && !isInteractive && !node.name && !node.children) continue;
 
+    // ─── Max elements truncation ───────────────────────
+    if (opts.maxElements && refCounter > opts.maxElements) {
+      skippedCount++;
+      truncated = true;
+      continue;
+    }
+
     const ref = `e${refCounter++}`;
     const indent = '  '.repeat(depth);
 
@@ -113,11 +122,11 @@ export async function takeSnapshot(
 
     let locator: Locator;
     if (opts.selector) {
-      locator = page.locator(opts.selector).getByRole(node.role as any, {
+      locator = frame.locator(opts.selector).getByRole(node.role as any, {
         name: node.name || undefined,
       });
     } else {
-      locator = page.getByRole(node.role as any, {
+      locator = frame.getByRole(node.role as any, {
         name: node.name || undefined,
       });
     }
@@ -129,9 +138,9 @@ export async function takeSnapshot(
     refMap.set(ref, { locator, role: node.role, name: node.name || '' });
 
     let outputLine = `${indent}@${ref} [${node.role}]`;
-    if (node.name) outputLine += ` "${node.name}"`;
+    if (node.name && !opts.structureOnly) outputLine += ` "${node.name}"`;
     if (node.props) outputLine += ` ${node.props}`;
-    if (node.children) outputLine += `: ${node.children}`;
+    if (node.children && !opts.structureOnly) outputLine += `: ${node.children}`;
 
     output.push(outputLine);
   }
@@ -139,7 +148,7 @@ export async function takeSnapshot(
   // ─── Cursor-interactive scan ─────────────────────────
   if (opts.cursorInteractive) {
     try {
-      const cursorElements = await page.evaluate(() => {
+      const cursorElements = await frame.evaluate(() => {
         const STANDARD_INTERACTIVE = new Set([
           'A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY', 'DETAILS',
         ]);
@@ -187,7 +196,7 @@ export async function takeSnapshot(
         let cRefCounter = 1;
         for (const elem of cursorElements) {
           const ref = `c${cRefCounter++}`;
-          const locator = page.locator(elem.selector);
+          const locator = frame.locator(elem.selector);
           refMap.set(ref, { locator, role: 'cursor-interactive', name: elem.text });
           output.push(`@${ref} [${elem.reason}] "${elem.text}"`);
         }
@@ -204,6 +213,11 @@ export async function takeSnapshot(
     return '(no interactive elements found)';
   }
 
+  if (truncated) {
+    output.push('');
+    output.push(`── truncated: ${skippedCount} more elements not shown (use max_elements to adjust) ──`);
+  }
+
   const snapshotText = output.join('\n');
   bm.setLastSnapshot(snapshotText);
   return snapshotText;
@@ -213,15 +227,15 @@ export async function diffSnapshot(
   bm: BrowserManager,
   opts: SnapshotOptions = {}
 ): Promise<string> {
-  const page = bm.getPage();
+  const frame = bm.getActiveFrame();
 
   let rootLocator: Locator;
   if (opts.selector) {
-    rootLocator = page.locator(opts.selector);
+    rootLocator = frame.locator(opts.selector);
     const count = await rootLocator.count();
     if (count === 0) throw new Error(`Selector not found: ${opts.selector}`);
   } else {
-    rootLocator = page.locator('body');
+    rootLocator = frame.locator('body');
   }
 
   // Take a fresh snapshot (reuses takeSnapshot logic for ref map building)

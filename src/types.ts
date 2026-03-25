@@ -12,6 +12,8 @@ export interface SnapshotOptions {
   depth?: number;
   selector?: string;
   cursorInteractive?: boolean;
+  maxElements?: number;
+  structureOnly?: boolean;
 }
 
 export interface ToolResult {

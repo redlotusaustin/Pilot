@@ -15,8 +15,10 @@ export function registerSnapshotTools(server: McpServer, bm: BrowserManager) {
       compact: z.boolean().optional().describe('Remove empty structural nodes'),
       depth: z.number().optional().describe('Limit tree depth (0 = root only)'),
       include_cursor_interactive: z.boolean().optional().describe('Scan for cursor:pointer/onclick/tabindex elements not in ARIA tree'),
+      max_elements: z.number().optional().describe('Max elements to include before truncating (saves tokens on large pages)'),
+      structure_only: z.boolean().optional().describe('Show tree structure without text content — saves tokens'),
     },
-    async ({ selector, interactive_only, compact, depth, include_cursor_interactive }) => {
+    async ({ selector, interactive_only, compact, depth, include_cursor_interactive, max_elements, structure_only }) => {
       await bm.ensureBrowser();
       try {
         const result = await takeSnapshot(bm, {
@@ -25,6 +27,8 @@ export function registerSnapshotTools(server: McpServer, bm: BrowserManager) {
           compact,
           depth,
           cursorInteractive: include_cursor_interactive,
+          maxElements: max_elements,
+          structureOnly: structure_only,
         });
         bm.resetFailures();
         return { content: [{ type: 'text' as const, text: result }] };
