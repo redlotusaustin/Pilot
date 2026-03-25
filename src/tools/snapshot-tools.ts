@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { BrowserManager } from '../browser-manager.js';
 import { takeSnapshot, diffSnapshot, annotateScreenshot } from '../snapshot.js';
 import { wrapError } from '../errors.js';
+import { validateOutputPath } from './visual.js';
 import * as fs from 'fs';
 
 export function registerSnapshotTools(server: McpServer, bm: BrowserManager) {
@@ -107,7 +108,8 @@ Errors:
     async ({ output_path }) => {
       await bm.ensureBrowser();
       try {
-        const screenshotPath = await annotateScreenshot(bm, output_path);
+        const validatedPath = output_path ? validateOutputPath(output_path) : undefined;
+        const screenshotPath = await annotateScreenshot(bm, validatedPath);
         bm.resetFailures();
 
         // Read the image and return as base64
