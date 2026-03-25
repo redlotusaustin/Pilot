@@ -88,7 +88,7 @@ Combine `max_elements`, `structure_only`, `interactive_only`, `compact`, and `de
 |---|---|---|
 | `core` | 9 | Simple automation — navigate, snapshot, click, fill, type, press_key, wait, screenshot |
 | `standard` | 25 | Common workflows — core + tabs, scroll, hover, drag, iframe, page reading |
-| `full` | 51 | Everything (default) |
+| `full` | 51 | Everything |
 
 ```json
 {
@@ -96,11 +96,26 @@ Combine `max_elements`, `structure_only`, `interactive_only`, `compact`, and `de
     "pilot": {
       "command": "npx",
       "args": ["-y", "pilot-mcp"],
-      "env": { "PILOT_PROFILE": "standard" }
+      "env": { "PILOT_PROFILE": "full" }
     }
   }
 }
 ```
+
+The default profile is `standard` (25 tools). Set `PILOT_PROFILE=full` for all 51 tools.
+
+## Security & Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `PILOT_PROFILE` | `standard` | Tool set: `core` (9), `standard` (25), or `full` (51) |
+| `PILOT_OUTPUT_DIR` | System temp | Restricts where screenshots/PDFs can be written |
+
+**Security hardening:**
+- Output path validation prevents writing outside `PILOT_OUTPUT_DIR`
+- Path traversal protection on all file-write operations
+- Expression size limit (50KB) on `pilot_evaluate` input
+- File upload resolves symlinks to prevent directory escape
 
 ## Tools (51)
 
@@ -255,6 +270,14 @@ This is why it's fast. No network hops, no serialization overhead, no process sp
 
 - Node.js >= 18
 - Chromium (installed via `npx playwright install chromium`)
+
+## Development
+
+21 unit tests via [vitest](https://vitest.dev/):
+
+```bash
+npm test
+```
 
 ## Credits
 

@@ -297,6 +297,15 @@ function getBrowserMatch(browser: BrowserInfo, profile: string): BrowserMatch {
   );
 }
 
+// ─── Internal: Input Sanitization ───────────────────────────────
+
+export function sanitizeBrowserName(browserName: string): string {
+  return browserName
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .trim() || 'unknown';
+}
+
 // ─── Internal: SQLite Access ────────────────────────────────────
 
 function openDb(dbPath: string, browserName: string): Database.Database {
@@ -314,7 +323,7 @@ function openDb(dbPath: string, browserName: string): Database.Database {
 }
 
 function openDbFromCopy(dbPath: string, browserName: string): Database.Database {
-  const tmpPath = path.join(os.tmpdir(), `pilot-cookies-${browserName.toLowerCase()}-${crypto.randomUUID()}.db`);
+  const tmpPath = path.join(os.tmpdir(), `pilot-cookies-${sanitizeBrowserName(browserName)}-${crypto.randomUUID()}.db`);
   try {
     fs.copyFileSync(dbPath, tmpPath);
     const walPath = dbPath + '-wal';
